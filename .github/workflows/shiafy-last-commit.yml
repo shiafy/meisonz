@@ -1,0 +1,42 @@
+name: Mark shiafy as latest commit
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: shiafy-last-commit-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  mark-latest:
+    if: github.actor != 'shiafy' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Append an empty commit credited to shiafy
+        env:
+          SOURCE_ACTOR: ${{ github.actor }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          git config user.name shiafy
+          git config user.email 151979515+shiafy@users.noreply.github.com
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            git commit --allow-empty -m "chore: record main update after ${SOURCE_ACTOR}" -m "Triggered by ${SOURCE_SHA}"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          exit 1
